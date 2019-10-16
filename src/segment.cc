@@ -32,15 +32,15 @@ void Segment::fitSegmentLines()
   // Fill lines.
   bool is_long_line = false;
   double cur_ground_height = -sensorHeight_;
-  std::list<Bin::MinZPoint> current_line_points(1, line_start->getMinZPoint());
-  LocalLine cur_line = std::make_pair(0, 0);
+  std::list<PointDZ> current_line_points(1, line_start->getMinZPoint());
+  LocalLine cur_line;
 
   for (auto line_iter = line_start + 1; line_iter != bins_.end(); ++line_iter)
   {
     // if non-empty bin
     if (line_iter->hasPoint())
     {
-      Bin::MinZPoint cur_point = line_iter->getMinZPoint();
+      PointDZ cur_point = line_iter->getMinZPoint();
 
       // check if current point is far from previous one
       if (cur_point.d - current_line_points.back().d > longThreshold_)
@@ -52,7 +52,7 @@ void Segment::fitSegmentLines()
         // Get expected z value to possibly reject far away points.
         double expected_z = std::numeric_limits<double>::max();
         if (is_long_line && current_line_points.size() >= 2)  // CHECK > 2 condition
-          expected_z = cur_line.first * cur_point.d + cur_line.second;
+          expected_z = cur_line.slope * cur_point.d + cur_line.offset;
 
         // add current point to current line, and fit again line
         current_line_points.push_back(cur_point);
@@ -61,7 +61,7 @@ void Segment::fitSegmentLines()
 
         // If not a good line, split current and begin new line
         if (error > maxError_ ||                                                   // too big fit error
-            std::fabs(cur_line.first) > maxSlope_ ||                               // too big slope
+            std::fabs(cur_line.slope) > maxSlope_ ||                               // too big slope
             is_long_line && std::fabs(expected_z - cur_point.z) > maxLongHeight_)  // CHECK too big height diff between last 2 points
         {
           // Remove current point
@@ -72,7 +72,7 @@ void Segment::fitSegmentLines()
           {
             const LocalLine new_line = fitLocalLine(current_line_points);
             lines_.push_back(localLineToLine(new_line, current_line_points));
-            cur_ground_height = new_line.first * current_line_points.back().d + new_line.second;
+            cur_ground_height = new_line.slope * current_line_points.back().d + new_line.offset;
           }
 
           // Start new line (keep only last point)
@@ -114,13 +114,13 @@ void Segment::fitSegmentLines()
  * @brief
  */
 Segment::Line Segment::localLineToLine(const LocalLine& local_line,
-                                       const std::list<Bin::MinZPoint>& line_points)
+                                       const std::list<PointDZ>& line_points)
 {
   Line line;
   const double first_d = line_points.front().d;
   const double second_d = line_points.back().d;
-  const double first_z = local_line.first * first_d + local_line.second;
-  const double second_z = local_line.first * second_d + local_line.second;
+  const double first_z = local_line.slope * first_d + local_line.offset;
+  const double second_z = local_line.slope * second_d + local_line.offset;
   line.first.z = first_z;
   line.first.d = first_d;
   line.second.z = second_z;
@@ -153,12 +153,12 @@ double Segment::verticalDistanceToLine(double d, double z)
 /*!
  * @brief
  */
-double Segment::getMeanError(const std::list<Bin::MinZPoint>& points, const LocalLine& line)
+double Segment::getMeanError(const std::list<PointDZ>& points, const LocalLine& line)
 {
   double error_sum = 0;
   for (const auto& point : points)
   {
-    const double residual = (line.first * point.d + line.second) - point.z;
+    const double residual = (line.slope * point.d + line.offset) - point.z;
     error_sum += residual * residual;
   }
   return error_sum / points.size();
@@ -168,12 +168,12 @@ double Segment::getMeanError(const std::list<Bin::MinZPoint>& points, const Loca
 /*!
  * @brief
  */
-double Segment::getMaxError(const std::list<Bin::MinZPoint>& points, const LocalLine& line)
+double Segment::getMaxError(const std::list<PointDZ>& points, const LocalLine& line)
 {
   double max_error = 0;
   for (const auto& point : points)
   {
-    const double residual = (line.first * point.d + line.second) - point.z;
+    const double residual = (line.slope * point.d + line.offset) - point.z;
     const double error = residual * residual;
     if (error > max_error)
       max_error = error;
@@ -185,7 +185,7 @@ double Segment::getMaxError(const std::list<Bin::MinZPoint>& points, const Local
 /*!
  * @brief
  */
-Segment::LocalLine Segment::fitLocalLine(const std::list<Bin::MinZPoint>& points)
+LocalLine Segment::fitLocalLine(const std::list<PointDZ>& points)
 {
   const unsigned int n_points = points.size();
   Eigen::MatrixXd X(n_points, 2);
@@ -200,8 +200,8 @@ Segment::LocalLine Segment::fitLocalLine(const std::list<Bin::MinZPoint>& points
   }
   Eigen::VectorXd result = X.colPivHouseholderQr().solve(Y);
   LocalLine line_result;
-  line_result.first = result(0);
-  line_result.second = result(1);
+  line_result.slope = result(0);
+  line_result.offset = result(1);
   return line_result;
 }
 

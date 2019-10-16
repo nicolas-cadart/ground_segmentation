@@ -6,11 +6,27 @@
 
 #include "ground_segmentation/bin.h"
 
+struct LocalLine
+{
+  LocalLine()
+    : slope(0.)
+    , offset(0.)
+    {}
+
+  LocalLine(double gradient, double intercept)
+    : slope(gradient)
+    , offset(intercept)
+    {}
+
+  double slope;   ///< gradient m of the line y = a * m + b
+  double offset;  ///< intercept b of the line y = a * m + b
+};
+
+
 class Segment
 {
 public:
-  typedef std::pair<Bin::MinZPoint, Bin::MinZPoint> Line;
-  typedef std::pair<double, double> LocalLine;
+  typedef std::pair<PointDZ, PointDZ> Line;
 
 private:
   // Parameters. Description in GroundSegmentation.
@@ -24,13 +40,13 @@ private:
   std::vector<Bin> bins_;
   std::list<Line> lines_;
 
-  LocalLine fitLocalLine(const std::list<Bin::MinZPoint>& points);
+  LocalLine fitLocalLine(const std::list<PointDZ>& points);
 
-  double getMeanError(const std::list<Bin::MinZPoint>& points, const LocalLine& line);
+  double getMeanError(const std::list<PointDZ>& points, const LocalLine& line);
 
-  double getMaxError(const std::list<Bin::MinZPoint>& points, const LocalLine& line);
+  double getMaxError(const std::list<PointDZ>& points, const LocalLine& line);
 
-  Line localLineToLine(const LocalLine& local_line, const std::list<Bin::MinZPoint>& line_points);
+  Line localLineToLine(const LocalLine& local_line, const std::list<PointDZ>& line_points);
 
 public:
   Segment(unsigned int n_bins, double max_slope, double max_error,

@@ -7,11 +7,27 @@
 #include <pcl/point_types.h>
 
 //------------------------------------------------------------------------------
+struct PointDZ
+{
+  PointDZ()
+    : z(0.)
+    , d(0.)
+  {}
+
+  PointDZ(double distance, double height)
+    : z(height)
+    , d(distance)
+  {}
+
+  bool operator==(const PointDZ& comp) { return z == comp.z && d == comp.d; }
+
+  double z;  ///< Z (height)
+  double d;  ///< distance (range)
+};
+
+//------------------------------------------------------------------------------
 class Bin
 {
-public:
-  struct MinZPoint;
-
 private:
   std::atomic<bool> has_point_;
   std::atomic<double> min_z;
@@ -21,34 +37,14 @@ public:
   Bin();
 
   /// \brief Fake copy constructor to allow vector<vector<Bin> > initialization.
-  Bin(const Bin& segment);
+  Bin(const Bin& bin);
 
   void addPoint(const pcl::PointXYZ& point);
+  void addPoint(double d, double z);
 
-  void addPoint(const double& d, const double& z);
-
-  MinZPoint getMinZPoint();
+  PointDZ getMinZPoint();
 
   inline bool hasPoint() { return has_point_; }
-};
-
-//------------------------------------------------------------------------------
-struct Bin::MinZPoint
-{
-  MinZPoint()
-    : z(0)  // CHECK std::numeric_limits<double>::max()
-    , d(0)  // CHECK std::numeric_limits<double>::max()
-  {}
-
-  MinZPoint(const double& d, const double& z)
-    : z(z)
-    , d(d)
-  {}
-
-  bool operator==(const MinZPoint& comp) { return z == comp.z && d == comp.d; }
-
-  double z;  ///< Z (height)
-  double d;  ///< distance (range)
 };
 
 #endif /* GROUND_SEGMENTATION_BIN_H_ */

@@ -24,7 +24,7 @@ GroundSegmentation::GroundSegmentation(const GroundSegmentationParams& params)
 
 //------------------------------------------------------------------------------
 /*!
- * @brief    Main function, apply ground segmentation on input pointcloud.
+ * @brief Main function, apply ground segmentation on input pointcloud.
  * @param[in] cloud         Pointcloud to process.
  * @param[out] segmentation Array of cloud size, containing label of each point.
  */
@@ -87,8 +87,8 @@ void GroundSegmentation::segment(const PointCloud& cloud, std::vector<int>* segm
 
 //------------------------------------------------------------------------------
 /*!
- * @brief Launch lineFit threads.  
- * @param
+ * @brief Launch lines fitting in several threads to compute ground model.
+ * @param[out] lines Array where to store computed lines for visualization purpose.
  */
 void GroundSegmentation::getLines(std::list<PointLine>* lines = nullptr)
 {
@@ -111,8 +111,11 @@ void GroundSegmentation::getLines(std::list<PointLine>* lines = nullptr)
 
 //------------------------------------------------------------------------------
 /*!
- * @brief     
- * @param
+ * @brief Fit lines to ground model for a subset of segments.
+ * @param[in] start_index The index of the first segment to process.
+ * @param[in] end_index   The index of the last segment to process.
+ * @param[out] lines      Array where to store computed lines for visualization purpose.
+ * @param[in] lines_mutex Mutex used to protect access to lines.
  */
 void GroundSegmentation::lineFitThread(const unsigned int start_index, const unsigned int end_index,
                                        std::list<PointLine>* lines, std::mutex* lines_mutex)
@@ -170,7 +173,7 @@ void GroundSegmentation::getMinZPointCloud(PointCloud* cloud)
  * @brief     
  * @param
  */
-pcl::PointXYZ GroundSegmentation::minZPointTo3d(const Bin::MinZPoint& min_z_point,
+pcl::PointXYZ GroundSegmentation::minZPointTo3d(const PointDZ& min_z_point,
                                                 const double& angle)
 {
   pcl::PointXYZ point;
@@ -182,8 +185,8 @@ pcl::PointXYZ GroundSegmentation::minZPointTo3d(const Bin::MinZPoint& min_z_poin
 
 //------------------------------------------------------------------------------
 /*!
- * @brief     
- * @param
+ * @brief      Launch threads that will assign a ground/non-ground label to each point from lines models.
+ * @param[out] Array of same size as pointcloud where to store segmentation labels.
  */
 void GroundSegmentation::assignCluster(std::vector<int>* segmentation)
 {
@@ -204,8 +207,10 @@ void GroundSegmentation::assignCluster(std::vector<int>* segmentation)
 
 //------------------------------------------------------------------------------
 /*!
- * @brief     
- * @param
+ * @brief Assign a ground/non-ground label to a subset of points from lines models.
+ * @param[in] start_index   The index of the first point of the cloud to process.
+ * @param[in] end_index     The index of the last point of the cloud to process.
+ * @param[out] segmentation Array of same size as pointcloud where to store segmentation labels.
  */
 void GroundSegmentation::assignClusterThread(const unsigned int& start_index,
                                              const unsigned int& end_index,
@@ -214,7 +219,7 @@ void GroundSegmentation::assignClusterThread(const unsigned int& start_index,
   const double segment_step = 2 * M_PI / params_.n_segments;
   for (unsigned int i = start_index; i < end_index; ++i)
   {
-    Bin::MinZPoint& point_2d = segment_coordinates_[i];
+    PointDZ& point_2d = segment_coordinates_[i];
     const int segment_index = bin_index_[i].first;
 
     // check if point is in range (otherwise segment_index = -1)
@@ -270,7 +275,7 @@ void GroundSegmentation::getMinZPoints(PointCloud* out_cloud)
       pcl::PointXYZ point;
       if (bin_iter->hasPoint())
       {
-        Bin::MinZPoint min_z_point(bin_iter->getMinZPoint());
+        PointDZ min_z_point(bin_iter->getMinZPoint());
         point.x = cos(angle) * min_z_point.d;
         point.y = sin(angle) * min_z_point.d;
         point.z = min_z_point.z;
@@ -340,7 +345,7 @@ void GroundSegmentation::insertionThread(const PointCloud& cloud,
     else
       bin_index_[i] = std::pair<unsigned int, unsigned int>(-1, -1);
 
-    segment_coordinates_[i] = Bin::MinZPoint(range, point.z);
+    segment_coordinates_[i] = PointDZ(range, point.z);
   }
 }
 

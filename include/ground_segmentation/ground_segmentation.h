@@ -55,7 +55,7 @@ class GroundSegmentation
   
   std::vector<Segment> segments_;                                 ///< Access with segments_[segment][bin]
   std::vector<std::pair<unsigned int, unsigned int>> bin_index_;  ///< Bin index of every point
-  std::vector<Bin::MinZPoint> segment_coordinates_;               ///< 2D coordinates (d, z) of every point in its respective segment
+  std::vector<PointDZ> segment_coordinates_;                      ///< 2D coordinates (d, z) of every point in its respective segment
 
   std::shared_ptr<pcl::visualization::PCLVisualizer> viewer_;  ///< Visualizer
 
@@ -76,7 +76,7 @@ class GroundSegmentation
   void lineFitThread(const unsigned int start_index, const unsigned int end_index,
                      std::list<PointLine>* lines, std::mutex* lines_mutex);
 
-  pcl::PointXYZ minZPointTo3d(const Bin::MinZPoint& min_z_point, const double& angle);
+  pcl::PointXYZ minZPointTo3d(const PointDZ& min_z_point, const double& angle);
 
   void getMinZPointCloud(PointCloud* cloud);
 
