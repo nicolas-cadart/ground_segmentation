@@ -1,47 +1,63 @@
-#include <ros/ros.h>
 #include <pcl/io/ply_io.h>
 #include <pcl_ros/point_cloud.h>
+#include <ros/ros.h>
 
 #include "ground_segmentation/ground_segmentation.h"
 
-class SegmentationNode {
+class SegmentationNode
+{
   ros::Publisher ground_pub_;
   ros::Publisher obstacle_pub_;
+  ros::Subscriber cloud_sub_;
+
   GroundSegmentationParams params_;
 
 public:
-  SegmentationNode(ros::NodeHandle& nh,
-                   const std::string& ground_topic,
-                   const std::string& obstacle_topic,
-                   const GroundSegmentationParams& params,
-                   const bool& latch = false) : params_(params) {
+  //----------------------------------------------------------------------------
+  SegmentationNode(ros::NodeHandle& nh, const std::string& input_topic,
+                   const std::string& ground_topic, const std::string& obstacle_topic,
+                   const GroundSegmentationParams& params, const bool& latch = false)
+    : params_(params)
+  {
+    // init ROS subscribers/publishers
     ground_pub_ = nh.advertise<pcl::PointCloud<pcl::PointXYZ>>(ground_topic, 1, latch);
     obstacle_pub_ = nh.advertise<pcl::PointCloud<pcl::PointXYZ>>(obstacle_topic, 1, latch);
+    cloud_sub_ = nh.subscribe(input_topic, 1, &SegmentationNode::scanCallback, this);
   }
 
-  void scanCallback(const pcl::PointCloud<pcl::PointXYZ>& cloud) {
+  //----------------------------------------------------------------------------
+  void scanCallback(const pcl::PointCloud<pcl::PointXYZ>& cloud)
+  {
+    // run ground segmentation
     GroundSegmentation segmenter(params_);
     std::vector<int> labels;
-
     segmenter.segment(cloud, &labels);
+
+    // fill output pointclouds
     pcl::PointCloud<pcl::PointXYZ> ground_cloud, obstacle_cloud;
     ground_cloud.header = cloud.header;
     obstacle_cloud.header = cloud.header;
-    for (size_t i = 0; i < cloud.size(); ++i) {
-      if (labels[i] == 1) ground_cloud.push_back(cloud[i]);
-      else obstacle_cloud.push_back(cloud[i]);
+    for (size_t i = 0; i < cloud.size(); ++i)
+    {
+      if (labels[i] == 1)
+        ground_cloud.push_back(cloud[i]);
+      else
+        obstacle_cloud.push_back(cloud[i]);
     }
+
+    // send pointclouds
     ground_pub_.publish(ground_cloud);
     obstacle_pub_.publish(obstacle_cloud);
   }
 };
 
-int main(int argc, char** argv) {
+//------------------------------------------------------------------------------
+int main(int argc, char** argv)
+{
   ros::init(argc, argv, "ground_segmentation");
-
   ros::NodeHandle nh("~");
 
-  // Do parameter stuff.
+  // Get ground segmentation parameters
   GroundSegmentationParams params;
   nh.param("visualize", params.visualize, params.visualize);
   nh.param("n_bins", params.n_bins, params.n_bins);
@@ -54,28 +70,23 @@ int main(int argc, char** argv) {
   nh.param("sensor_height", params.sensor_height, params.sensor_height);
   nh.param("line_search_angle", params.line_search_angle, params.line_search_angle);
   nh.param("n_threads", params.n_threads, params.n_threads);
-  // Params that need to be squared.
-  double r_min, r_max, max_fit_error;
-  if (nh.getParam("r_min", r_min)) {
-    params.r_min_square = r_min*r_min;
-  }
-  if (nh.getParam("r_max", r_max)) {
-    params.r_max_square = r_max*r_max;
-  }
-  if (nh.getParam("max_fit_error", max_fit_error)) {
-    params.max_error_square = max_fit_error * max_fit_error;
-  }
+  nh.param("r_min", params.r_min, params.r_min);
+  nh.param("r_max", params.r_max, params.r_max);
 
+  // Params that need to be squared
+  double max_fit_error;
+  if (nh.getParam("max_fit_error", max_fit_error))
+    params.maxError_square = max_fit_error * max_fit_error;
+
+  // Get topics names
   std::string ground_topic, obstacle_topic, input_topic;
   bool latch;
-  nh.param<std::string>("input_topic", input_topic, "input_cloud");
+  nh.param<std::string>("input_topic", input_topic, "velodyne_points");
   nh.param<std::string>("ground_output_topic", ground_topic, "ground_cloud");
   nh.param<std::string>("obstacle_output_topic", obstacle_topic, "obstacle_cloud");
   nh.param("latch", latch, false);
 
-  // Start node.
-  SegmentationNode node(nh, ground_topic, obstacle_topic, params, latch);
-  ros::Subscriber cloud_sub;
-  cloud_sub = nh.subscribe(input_topic, 1, &SegmentationNode::scanCallback, &node);
+  // Start node
+  SegmentationNode node(nh, input_topic, ground_topic, obstacle_topic, params, latch);
   ros::spin();
 }

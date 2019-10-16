@@ -1,4 +1,4 @@
-# linefit_ground_segmentation
+# ground_segmentation
 
 Implementation of the ground segmentation algorithm proposed in 
 ```
@@ -11,30 +11,30 @@ Implementation of the ground segmentation algorithm proposed in
   organization={IEEE}
 }
 ```
-The `linefit_ground_segmentation` package contains the ground segmentation library.
-A ROS interface is available in `linefit_ground_segmentation_ros` 
+The `ground_segmentation` package contains the ground segmentation library with a ROS interface to use it.
 
-The library can be compiled separately from the ROS interface if you're not using ROS.
+The library is compiled separately from the ROS interface if you're not using ROS.
 
 ## Installation
 
 Requires the following dependencies to be installed:
 
-- *catkin_simple* `https://github.com/catkin/catkin_simple.git` 
-- *glog_catkin* `https://github.com/ethz-asl/glog_catkin.git`
+- *ROS* (Melodic)
+- *PCL*
 
-Compile using your favorite catkin build tool (e.g. `catkin build linefit_ground_segmentation`)
+Compile using your favorite catkin build tool (e.g. `catkin build ground_segmentation`)
 
 ## Launch instructions
 
-The ground segmentation ROS node can be launch by executing `roslaunch linefit_ground_segmentation_ros segmentation.launch`.
+The ground segmentation ROS node can be launch by executing `roslaunch ground_segmentation segmentation.launch`.
 Input and output topic names can be specified in the same file.
 
 ## Parameter description
 
-Parameters are set in `linefit_ground_segmentation_ros/launch/segmentation_params.yaml`
+Parameters are set in `ground_segmentation/launch/segmentation_params.yaml`
 
 ### Ground Condition
+
 - **max_dist_to_line**  maximum vertical distance of point to line to be considered ground.
 - **max_slope**  Maximum slope of a line.
 - **max_fit_error**  Maximum error a point is allowed to have in a line fit.
@@ -56,3 +56,9 @@ Parameters are set in `linefit_ground_segmentation_ros/launch/segmentation_param
 - **n_threads**  Number of threads to use.
 - **latch**  Latch output point clouds in ROS node. 
 - **visualize** Visualize the segmentation result. **ONLY FOR DEBUGGING.** Do not set true during online operation.
+
+## TODO
+
+- [ ] use mean point instead of lowest-Z ?
+- [ ] run segmentation from a different coordinates than (0, 0, 0)
+- [ ] Use non-linear range binning
