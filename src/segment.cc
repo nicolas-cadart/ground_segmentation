@@ -19,7 +19,7 @@ Segment::Segment(unsigned int n_bins, double max_slope, double max_error,
 void Segment::fitSegmentLines()
 {
   // Find first non empty bin.
-  auto line_start = bins_.begin();
+  std::vector<Bin>::iterator line_start = bins_.begin();
   while (!line_start->hasPoint())
   {
     ++line_start;
@@ -111,7 +111,9 @@ void Segment::fitSegmentLines()
 
 //------------------------------------------------------------------------------
 /*!
- * @brief
+ * @brief Build absolute coordinates line from local line paramters and points range.
+ * @param[in] local_line Parameters (slope and intercept) of the line.
+ * @param[in] line_points Points used to fit local_line, used here to find range definition.
  */
 Segment::Line Segment::localLineToLine(const LocalLine& local_line,
                                        const std::list<PointDZ>& line_points)
@@ -130,20 +132,24 @@ Segment::Line Segment::localLineToLine(const LocalLine& local_line,
 
 //------------------------------------------------------------------------------
 /*!
- * @brief
+ * @brief Compute vertical distance of a point to the closest line of the segment.
+ * @param[in] d Range coordinate of the 2d point.
+ * @param[in] z Heigth coordinate of the 2d point.
+ * @return Distance of 2d point (d, z) to the segment.
  */
 double Segment::verticalDistanceToLine(double d, double z)
 {
-  const double kMargin = 0.1;  // CHECK use?
-  double distance = -1;
-  for (const auto& line : lines_)
+  const double dTol = 0.2;  // [m] line validity range tolerance
+  double distance = -1;  // TODO init to big value
+  for (const Line& line : lines_)
   {
-    if (line.first.d - kMargin < d && line.second.d + kMargin > d)
+    // if point is in validity range of the line
+    if (line.first.d - dTol < d && d < line.second.d + dTol)
     {
-      const double delta_z = line.second.z - line.first.z;
-      const double delta_d = line.second.d - line.first.d;
-      const double expected_z = (d - line.first.d) / delta_d * delta_z + line.first.z;
-      distance = std::fabs(z - expected_z);
+      const double deltaZ = line.second.z - line.first.z;
+      const double deltaD = line.second.d - line.first.d;
+      const double expectedZ = (d - line.first.d) / deltaD * deltaZ + line.first.z;
+      distance = std::fabs(z - expectedZ);  // TODO update only if distance is smaller
     }
   }
   return distance;
@@ -151,7 +157,10 @@ double Segment::verticalDistanceToLine(double d, double z)
 
 //------------------------------------------------------------------------------
 /*!
- * @brief
+ * @brief Compute mean squared error of points to a line.
+ * @param[in] points Array of points used to fit the line.
+ * @param[in] line Fitted line to compare to points.
+ * @return mean squared error to line.
  */
 double Segment::getMeanError(const std::list<PointDZ>& points, const LocalLine& line)
 {
@@ -166,7 +175,10 @@ double Segment::getMeanError(const std::list<PointDZ>& points, const LocalLine& 
 
 //------------------------------------------------------------------------------
 /*!
- * @brief
+ * @brief Compute max squared error of the worst fitted point to a line.
+ * @param[in] points Array of points used to fit the line.
+ * @param[in] line Fitted line to compare to points.
+ * @return max squared error to line.
  */
 double Segment::getMaxError(const std::list<PointDZ>& points, const LocalLine& line)
 {
@@ -183,7 +195,9 @@ double Segment::getMaxError(const std::list<PointDZ>& points, const LocalLine& l
 
 //------------------------------------------------------------------------------
 /*!
- * @brief
+ * @brief Fit a line (slope & intercept) to a set of 2D points.
+ * @param[in] points Points to fit with a line.
+ * @return The fitted line.
  */
 LocalLine Segment::fitLocalLine(const std::list<PointDZ>& points)
 {
@@ -191,7 +205,7 @@ LocalLine Segment::fitLocalLine(const std::list<PointDZ>& points)
   Eigen::MatrixXd X(n_points, 2);
   Eigen::VectorXd Y(n_points);
   unsigned int counter = 0;
-  for (const auto& point : points)
+  for (const PointDZ& point : points)
   {
     X(counter, 0) = point.d;
     X(counter, 1) = 1;
@@ -207,7 +221,9 @@ LocalLine Segment::fitLocalLine(const std::list<PointDZ>& points)
 
 //------------------------------------------------------------------------------
 /*!
- * @brief
+ * @brief Return fitted lines if they exist.
+ * @param[out] lines Array where to store fitted lines.
+ * @return true if success, false otherwise.
  */
 bool Segment::getLines(std::list<Line>* lines)
 {

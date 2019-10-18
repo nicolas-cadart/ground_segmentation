@@ -35,16 +35,15 @@ private:
 
 public:
   Bin();
-
   /// \brief Fake copy constructor to allow vector<vector<Bin> > initialization.
   Bin(const Bin& bin);
 
   void addPoint(const pcl::PointXYZ& point);
   void addPoint(double d, double z);
 
-  PointDZ getMinZPoint();
+  inline PointDZ getMinZPoint() const { return PointDZ(min_z_range, min_z); }
 
-  inline bool hasPoint() { return has_point_; }
+  inline bool hasPoint() const { return has_point_; }
 };
 
 #endif /* GROUND_SEGMENTATION_BIN_H_ */

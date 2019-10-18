@@ -18,8 +18,8 @@ struct LocalLine
     , offset(intercept)
     {}
 
-  double slope;   ///< gradient m of the line y = a * m + b
-  double offset;  ///< intercept b of the line y = a * m + b
+  double slope;   ///< gradient a of the line y = a * x + b
+  double offset;  ///< intercept b of the line y = a * x + b
 };
 
 
