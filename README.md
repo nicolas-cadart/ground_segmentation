@@ -59,6 +59,7 @@ Parameters are set in `ground_segmentation/launch/segmentation_params.yaml`
 
 ## TODO
 
-- [ ] use mean point instead of lowest-Z ?
-- [ ] run segmentation from a different coordinates than (0, 0, 0)
+- [ ] use mean point / 10th percentile instead of lowest-Z ?
+- [x] run segmentation from a different coordinates than (0, 0, 0)
 - [ ] Use non-linear range binning
+- [ ] Filter out outlier lines

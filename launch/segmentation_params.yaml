@@ -1,19 +1,27 @@
-n_threads: 2  # number of threads to use.
-
-r_min: 3.  # minimum point distance.
-r_max: 100. # maximum point distance.
-n_bins: 120 # number of radial bins.
-n_segments: 360 # number of radial segments.
-
-max_dist_to_line: 0.15 # maximum vertical distance of point to line to be considered ground.
-
-max_slope: 0.3  # maximum slope of a ground line.
-max_fit_error: 0.15  # maximum error of a point during line fit.
-long_threshold: 5. # distance between points after which they are considered far from each other.
-max_long_height: 0.3  # maximum height change to previous point in long line.
-max_start_height: 0.3 # maximum difference to estimated ground height to start a new line.
-sensor_height: 2.2 # sensor height above ground.
-line_search_angle: 0.30 # how far to search in angular direction to find a line [rad].
-
-latch: false # latch output topics or not
+n_threads: 4     # number of threads to use.
+latch: false     # latch output topics or not
 visualize: false  # visualize segmentation result - USE ONLY FOR DEBUGGING
+
+# Polar grid discretization
+r_min: 0.        # minimum point distance.
+r_max: 100.      # maximum point distance.
+n_bins: 120      # number of radial bins.
+n_segments: 360  # number of radial segments.
+
+# Ground Segmentation assumes that LiDAR sensor is located at (0, 0, 0). 
+# If not, adapt transform parameters with real position.
+# transform: [0., -20., 2.3, -0.27, 0., 0.]  # transform (X, Y, Z, roll, pitch, yaw) to apply to input pointcloud [m, rad]
+# transform: [0., -20., 2.3, 0., 0., 0.]  # transform (X, Y, Z, roll, pitch, yaw) to apply to input pointcloud [m, rad]
+transform: [0., 0., 2.3, -0.02, 0.27, 0.]  # transform (X, Y, Z, roll, pitch, yaw) to apply to input pointcloud [m, rad]
+apply_transform: true                 # apply transform to output cloud
+
+# Ground lines fitting
+max_slope: 0.3         # maximum slope of a ground line.
+max_fit_error: 0.15    # maximum error of a point during line fit.
+long_threshold: 5.     # distance between points after which they are considered far from each other.
+max_long_height: 0.3   # maximum height change to previous point in long line.
+max_start_height: 0.3  # maximum difference to estimated ground height to start a new line.
+
+# Points clustering
+line_search_angle: 0.15 # how far to search in angular direction to find a ground line matching with point [rad].
+max_dist_to_line: 0.15 # maximum vertical distance of point to line to be considered ground.

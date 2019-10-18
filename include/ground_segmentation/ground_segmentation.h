@@ -29,8 +29,8 @@ struct GroundSegmentationParams
     , long_threshold(2.0)
     , max_long_height(0.1)
     , max_start_height(0.2)
-    , sensor_height(0.2)
     , line_search_angle(0.2)
+    , transform(Eigen::Affine3f::Identity())
   {}
 
   bool visualize;            ///< Visualize estimated ground.
@@ -44,9 +44,9 @@ struct GroundSegmentationParams
   double long_threshold;     ///< Distance at which points are considered far from each other.
   double max_long_height;    ///< Maximum slope for
   double max_start_height;   ///< Maximum heigh of starting line to be labelled ground.
-  double sensor_height;      ///< Height of sensor above ground.
   double line_search_angle;  ///< How far to search for a line in angular direction [rad].
   int n_threads;             ///< Number of threads.
+  Eigen::Affine3f transform; ///< 3D transform World -> LiDAR, to apply to each point before processing.
 };
 
 //------------------------------------------------------------------------------

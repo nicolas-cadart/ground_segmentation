@@ -35,7 +35,6 @@ private:
   const double longThreshold_;
   const double maxLongHeight_;
   const double maxStartHeight_;
-  const double sensorHeight_;
 
   std::vector<Bin> bins_;
   std::list<Line> lines_;
@@ -50,8 +49,7 @@ private:
 
 public:
   Segment(unsigned int n_bins, double max_slope, double max_error,
-          double long_threshold, double max_long_height,
-          double max_start_height, double sensor_height);
+          double long_threshold, double max_long_height, double max_start_height);
 
   double verticalDistanceToLine(double d, double z);
 

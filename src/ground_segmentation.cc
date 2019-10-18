@@ -15,8 +15,7 @@ GroundSegmentation::GroundSegmentation(const GroundSegmentationParams& params)
   : params_(params)
   , segments_(params.n_segments,
               Segment(params.n_bins, params.max_slope, params.maxError_square,
-                      params.long_threshold, params.max_long_height, params.max_start_height,
-                      params.sensor_height))
+                      params.long_threshold, params.max_long_height, params.max_start_height))
 {
   if (params.visualize)
     viewer_ = std::make_shared<pcl::visualization::PCLVisualizer>("3D Viewer");
@@ -69,10 +68,12 @@ void GroundSegmentation::segment(const PointCloud& cloud, std::vector<int>* segm
     PointCloud::Ptr ground_cloud(new PointCloud());
     for (size_t i = 0; i < cloud.size(); ++i)
     {
+      pcl::PointXYZ point;
+      point.getVector3fMap() = params_.transform * cloud[i].getVector3fMap();
       if (segmentation->at(i) == 1)
-        ground_cloud->push_back(cloud[i]);
+        ground_cloud->push_back(point);
       else
-        obstacle_cloud->push_back(cloud[i]);
+        obstacle_cloud->push_back(point);
     }
     PointCloud::Ptr min_cloud(new PointCloud());
     getMinZPointCloud(min_cloud.get());
@@ -115,8 +116,8 @@ void GroundSegmentation::insertPoints(const PointCloud& cloud)
  * @param[in] end_index   The index of the last point of the cloud to process.
  */
 void GroundSegmentation::insertPointsThread(const PointCloud& cloud, 
-                                         const size_t start_index,
-                                         const size_t end_index)
+                                            const size_t start_index,
+                                            const size_t end_index)
 {
   // compute other params
   const double segment_step = 2 * M_PI / params_.n_segments;
@@ -125,7 +126,9 @@ void GroundSegmentation::insertPointsThread(const PointCloud& cloud,
   // loop over selected points
   for (unsigned int i = start_index; i < end_index; ++i)
   {
-    const pcl::PointXYZ& point = cloud[i];
+    // apply 3D transform to point
+    pcl::PointXYZ point;
+    point.getVector3fMap() = params_.transform * cloud[i].getVector3fMap();
     const double range = sqrt(point.x * point.x + point.y * point.y);
 
     // if point is in range, bin it

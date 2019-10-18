@@ -11,13 +11,15 @@ class SegmentationNode
   ros::Subscriber cloud_sub_;
 
   GroundSegmentationParams params_;
+  bool transform_;
 
 public:
   //----------------------------------------------------------------------------
   SegmentationNode(ros::NodeHandle& nh, const std::string& input_topic,
                    const std::string& ground_topic, const std::string& obstacle_topic,
-                   const GroundSegmentationParams& params, const bool& latch = false)
+                   const GroundSegmentationParams& params, bool latch = false, bool transform = false)
     : params_(params)
+    , transform_(transform)
   {
     // init ROS subscribers/publishers
     ground_pub_ = nh.advertise<pcl::PointCloud<pcl::PointXYZ>>(ground_topic, 1, latch);
@@ -39,10 +41,16 @@ public:
     obstacle_cloud.header = cloud.header;
     for (size_t i = 0; i < cloud.size(); ++i)
     {
-      if (labels[i] == 1)
-        ground_cloud.push_back(cloud[i]);
+      pcl::PointXYZ point;
+      if (transform_)
+        point.getVector3fMap() = params_.transform * cloud[i].getVector3fMap();
       else
-        obstacle_cloud.push_back(cloud[i]);
+        point = cloud[i];
+
+      if (labels[i] == 1)
+        ground_cloud.push_back(point);
+      else
+        obstacle_cloud.push_back(point);
     }
 
     // send pointclouds
@@ -67,7 +75,6 @@ int main(int argc, char** argv)
   nh.param("long_threshold", params.long_threshold, params.long_threshold);
   nh.param("max_long_height", params.max_long_height, params.max_long_height);
   nh.param("max_start_height", params.max_start_height, params.max_start_height);
-  nh.param("sensor_height", params.sensor_height, params.sensor_height);
   nh.param("line_search_angle", params.line_search_angle, params.line_search_angle);
   nh.param("n_threads", params.n_threads, params.n_threads);
   nh.param("r_min", params.r_min, params.r_min);
@@ -78,6 +85,14 @@ int main(int argc, char** argv)
   if (nh.getParam("max_fit_error", max_fit_error))
     params.maxError_square = max_fit_error * max_fit_error;
 
+  // compute transformation
+  bool apply_transform;
+  std::vector<float> transform(6, 0);
+  nh.param("apply_transform", apply_transform, false);
+  if (nh.getParam("transform", transform))
+    params.transform = pcl::getTransformation(transform[0], transform[1], transform[2],  // translation : X, Y, Z
+                                              transform[3], transform[4], transform[5]); // rotation : roll, pitch, yaw
+
   // Get topics names
   std::string ground_topic, obstacle_topic, input_topic;
   bool latch;
@@ -87,6 +102,6 @@ int main(int argc, char** argv)
   nh.param("latch", latch, false);
 
   // Start node
-  SegmentationNode node(nh, input_topic, ground_topic, obstacle_topic, params, latch);
+  SegmentationNode node(nh, input_topic, ground_topic, obstacle_topic, params, latch, apply_transform);
   ros::spin();
 }

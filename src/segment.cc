@@ -2,14 +2,13 @@
 
 Segment::Segment(unsigned int n_bins, double max_slope, double max_error,
                  double long_threshold, double max_long_height,
-                 double max_start_height, double sensor_height)
+                 double max_start_height)
   : bins_(n_bins)
   , maxSlope_(max_slope)
   , maxError_(max_error)
   , longThreshold_(long_threshold)
   , maxLongHeight_(max_long_height)
   , maxStartHeight_(max_start_height)
-  , sensorHeight_(sensor_height)
 {}
 
 //------------------------------------------------------------------------------
@@ -31,7 +30,7 @@ void Segment::fitSegmentLines()
   
   // Fill lines.
   bool is_long_line = false;
-  double cur_ground_height = -sensorHeight_;
+  double cur_ground_height = 0;  // After transform, we assume that LiDAR is located as position (0, 0, 0).
   std::list<PointDZ> current_line_points(1, line_start->getMinZPoint());
   LocalLine cur_line;
 
