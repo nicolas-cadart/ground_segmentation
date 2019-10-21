@@ -51,7 +51,7 @@ public:
   Segment(unsigned int n_bins, double max_slope, double max_error,
           double long_threshold, double max_long_height, double max_start_height);
 
-  double verticalDistanceToLine(double d, double z);
+  double verticalDistanceToLine(double d, double z, double dTol = 0.2);
 
   void fitSegmentLines();
 

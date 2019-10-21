@@ -14,7 +14,7 @@
 GroundSegmentation::GroundSegmentation(const GroundSegmentationParams& params)
   : params_(params)
   , segments_(params.n_segments,
-              Segment(params.n_bins, params.max_slope, params.maxError_square,
+              Segment(params.n_bins, params.max_slope, params.max_error * params.max_error,
                       params.long_threshold, params.max_long_height, params.max_start_height))
 {
   if (params.visualize)
@@ -41,7 +41,7 @@ void GroundSegmentation::segment(const PointCloud& cloud, std::vector<int>* segm
   coordinates_2d_.resize(cloud.size());
 
   // process
-  insertPoints(cloud);
+  binPoints(cloud);
   chrono_ms = std::chrono::high_resolution_clock::now() - start;
   double ellapsed = chrono_ms.count();
   std::cout << "Pointcloud binning : " << ellapsed << " ms" << std::endl;
@@ -82,7 +82,7 @@ void GroundSegmentation::segment(const PointCloud& cloud, std::vector<int>* segm
 
   // display computation duration info
   chrono_ms = std::chrono::high_resolution_clock::now() - start;
-  std::cout << "Done! Total time   : " << chrono_ms.count() << " ms" << std::endl << std::endl;
+  std::cout << "Done! Total time   : " << chrono_ms.count() << " ms" << std::endl;
 }
 
 //------------------------------------------------------------------------------
@@ -90,7 +90,7 @@ void GroundSegmentation::segment(const PointCloud& cloud, std::vector<int>* segm
  * @brief Start parallel threads to bin pointcloud into segments/bins.
  * @param[in] cloud The input pointcloud to process.
  */
-void GroundSegmentation::insertPoints(const PointCloud& cloud)
+void GroundSegmentation::binPoints(const PointCloud& cloud)
 {
   std::vector<std::thread> threads(params_.n_threads);
   const size_t points_per_thread = cloud.size() / params_.n_threads;
@@ -100,7 +100,7 @@ void GroundSegmentation::insertPoints(const PointCloud& cloud)
   {
     const size_t start_index = i * points_per_thread;
     const size_t end_index = std::min((i + 1) * points_per_thread, cloud.size() - 1);
-    threads[i] = std::thread(&GroundSegmentation::insertPointsThread, this, cloud, start_index, end_index);
+    threads[i] = std::thread(&GroundSegmentation::binPointsThread, this, cloud, start_index, end_index);
   }
 
   // Wait for threads to finish.
@@ -115,7 +115,7 @@ void GroundSegmentation::insertPoints(const PointCloud& cloud)
  * @param[in] start_index The index of the first point of the cloud to process.
  * @param[in] end_index   The index of the last point of the cloud to process.
  */
-void GroundSegmentation::insertPointsThread(const PointCloud& cloud, 
+void GroundSegmentation::binPointsThread(const PointCloud& cloud,
                                             const size_t start_index,
                                             const size_t end_index)
 {
@@ -242,6 +242,8 @@ void GroundSegmentation::assignClusterThread(const unsigned int& start_index,
                                              std::vector<int>* segmentation)
 {
   const double segment_step = 2 * M_PI / params_.n_segments;
+  const double half_bin_step = (params_.r_max - params_.r_min) / params_.n_bins;
+
   for (unsigned int i = start_index; i < end_index; ++i)
   {
     PointDZ& point_2d = coordinates_2d_[i];
@@ -251,7 +253,7 @@ void GroundSegmentation::assignClusterThread(const unsigned int& start_index,
     if (polar_index_[i].is_valid())
     {
       // Search closest line to point in neighboring segments.
-      double dist = segments_[segment_index].verticalDistanceToLine(point_2d.d, point_2d.z);
+      double dist = segments_[segment_index].verticalDistanceToLine(point_2d.d, point_2d.z, half_bin_step);
       int steps = 1;
       // while distance is invalid and we haven't looked in all neighboring segments
       while (dist == -1 && steps * segment_step < params_.line_search_angle)
@@ -265,8 +267,8 @@ void GroundSegmentation::assignClusterThread(const unsigned int& start_index,
           index_2 += params_.n_segments;
         
         // Get distance to neighboring lines.
-        const double dist_1 = segments_[index_1].verticalDistanceToLine(point_2d.d, point_2d.z);
-        const double dist_2 = segments_[index_2].verticalDistanceToLine(point_2d.d, point_2d.z);
+        const double dist_1 = segments_[index_1].verticalDistanceToLine(point_2d.d, point_2d.z, half_bin_step);
+        const double dist_2 = segments_[index_2].verticalDistanceToLine(point_2d.d, point_2d.z, half_bin_step);
 
         // Select larger distance if both segments return a valid distance. CHECK
         if (dist_1 > dist)

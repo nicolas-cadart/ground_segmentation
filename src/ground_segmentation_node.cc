@@ -52,6 +52,8 @@ public:
       else
         obstacle_cloud.push_back(point);
     }
+    std::cout << "(" << ground_cloud.size() << " ground points, "
+                     << obstacle_cloud.size() << " non-ground points)" << std::endl << std::endl;
 
     // send pointclouds
     ground_pub_.publish(ground_cloud);
@@ -71,6 +73,7 @@ int main(int argc, char** argv)
   nh.param("n_bins", params.n_bins, params.n_bins);
   nh.param("n_segments", params.n_segments, params.n_segments);
   nh.param("max_dist_to_line", params.max_dist_to_line, params.max_dist_to_line);
+  nh.param("max_fit_error", params.max_error, params.max_error);
   nh.param("max_slope", params.max_slope, params.max_slope);
   nh.param("long_threshold", params.long_threshold, params.long_threshold);
   nh.param("max_long_height", params.max_long_height, params.max_long_height);
@@ -79,11 +82,6 @@ int main(int argc, char** argv)
   nh.param("n_threads", params.n_threads, params.n_threads);
   nh.param("r_min", params.r_min, params.r_min);
   nh.param("r_max", params.r_max, params.r_max);
-
-  // Params that need to be squared
-  double max_fit_error;
-  if (nh.getParam("max_fit_error", max_fit_error))
-    params.maxError_square = max_fit_error * max_fit_error;
 
   // compute transformation
   bool apply_transform;

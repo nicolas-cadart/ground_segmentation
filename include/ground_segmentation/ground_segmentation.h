@@ -18,14 +18,14 @@ struct GroundSegmentationParams
 {
   GroundSegmentationParams()
     : visualize(false)
-    , r_min(1.)
+    , r_min(0.)
     , r_max(50.)
     , n_bins(30)
     , n_segments(180)
     , max_dist_to_line(0.15)
     , max_slope(1)
     , n_threads(4)
-    , maxError_square(0.01)
+    , max_error(0.05)
     , long_threshold(2.0)
     , max_long_height(0.1)
     , max_start_height(0.2)
@@ -40,10 +40,10 @@ struct GroundSegmentationParams
   int n_segments;            ///< Number of angular segments.
   double max_dist_to_line;   ///< Maximum distance to a ground line to be classified as ground.
   double max_slope;          ///< Max slope to be considered ground line.
-  double maxError_square;    ///< Max error for line fit.
+  double max_error;           ///< Max error for line fit.
   double long_threshold;     ///< Distance at which points are considered far from each other.
-  double max_long_height;    ///< Maximum slope for
-  double max_start_height;   ///< Maximum heigh of starting line to be labelled ground.
+  double max_long_height;    ///< Maximum allowed height difference between two far points.
+  double max_start_height;   ///< Maximum height of starting line to be labelled ground.
   double line_search_angle;  ///< How far to search for a line in angular direction [rad].
   int n_threads;             ///< Number of threads.
   Eigen::Affine3f transform; ///< 3D transform World -> LiDAR, to apply to each point before processing.
@@ -82,9 +82,9 @@ class GroundSegmentation
 
   // ----- main internal routines -----
 
-  void insertPoints(const PointCloud& cloud);
+  void binPoints(const PointCloud& cloud);
 
-  void insertPointsThread(const PointCloud& cloud, const size_t start_index, const size_t end_index);
+  void binPointsThread(const PointCloud& cloud, const size_t start_index, const size_t end_index);
 
   void fitGroundLines(std::list<PointLine>* lines);
 

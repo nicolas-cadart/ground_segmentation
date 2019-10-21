@@ -18,39 +18,40 @@ Segment::Segment(unsigned int n_bins, double max_slope, double max_error,
 void Segment::fitSegmentLines()
 {
   // Find first non empty bin.
-  std::vector<Bin>::iterator line_start = bins_.begin();
-  while (!line_start->hasPoint())
+  std::vector<Bin>::iterator bin_start = bins_.begin();
+  while (!bin_start->hasPoint())
   {
-    ++line_start;
+    ++bin_start;
 
     // Stop if all bins are empty.
-    if (line_start == bins_.end())
+    if (bin_start == bins_.end())
       return;
   }
   
-  // Fill lines.
-  bool is_long_line = false;
-  double cur_ground_height = 0;  // After transform, we assume that LiDAR is located as position (0, 0, 0).
-  std::list<PointDZ> current_line_points(1, line_start->getMinZPoint());
+  // Init first line with first point.
+  bool far_from_previous_line = false;
+  double ground_height = 0;  // After transform, we assume that LiDAR is located as position (0, 0, 0).
+  std::list<PointDZ> current_line_points(1, bin_start->getMinZPoint());
   LocalLine cur_line;
 
-  for (auto line_iter = line_start + 1; line_iter != bins_.end(); ++line_iter)
+  // Build all lines for this segment.
+  for (auto bin_iter = bin_start + 1; bin_iter != bins_.end(); ++bin_iter)
   {
     // if non-empty bin
-    if (line_iter->hasPoint())
+    if (bin_iter->hasPoint())
     {
-      PointDZ cur_point = line_iter->getMinZPoint();
+      // get bin point
+      PointDZ cur_point = bin_iter->getMinZPoint();
 
-      // check if current point is far from previous one
-      if (cur_point.d - current_line_points.back().d > longThreshold_)
-        is_long_line = true;
+      // check if current point is far from last ground line
+      far_from_previous_line = cur_point.d - current_line_points.back().d > longThreshold_;
 
       // if current line already exists (from at least 2 points)
       if (current_line_points.size() >= 2)
       {
         // Get expected z value to possibly reject far away points.
         double expected_z = std::numeric_limits<double>::max();
-        if (is_long_line && current_line_points.size() >= 2)  // CHECK > 2 condition
+        if (far_from_previous_line)
           expected_z = cur_line.slope * cur_point.d + cur_line.offset;
 
         // add current point to current line, and fit again line
@@ -59,49 +60,43 @@ void Segment::fitSegmentLines()
         const double error = getMaxError(current_line_points, cur_line);
 
         // If not a good line, split current and begin new line
-        if (error > maxError_ ||                                                   // too big fit error
-            std::fabs(cur_line.slope) > maxSlope_ ||                               // too big slope
-            is_long_line && std::fabs(expected_z - cur_point.z) > maxLongHeight_)  // CHECK too big height diff between last 2 points
+        if (error > maxError_ ||                                                             // too big fit error
+            std::fabs(cur_line.slope) > maxSlope_ ||                                         // too big slope
+            far_from_previous_line && std::fabs(expected_z - cur_point.z) > maxLongHeight_)  // distant point too high
         {
           // Remove current point
           current_line_points.pop_back();
 
-          // Don't let lines with 2 base points through. CHECK
+          // Only save lines with at least 3 points, as we can fit any pair of points with a line.
           if (current_line_points.size() >= 3)
           {
             const LocalLine new_line = fitLocalLine(current_line_points);
             lines_.push_back(localLineToLine(new_line, current_line_points));
-            cur_ground_height = new_line.slope * current_line_points.back().d + new_line.offset;
+            ground_height = new_line.slope * current_line_points.back().d + new_line.offset;
           }
 
           // Start new line (keep only last point)
-          is_long_line = false;
           current_line_points.erase(current_line_points.begin(), --current_line_points.end());
-          --line_iter;
+          // Play again current point.
+          --bin_iter;
         }
       }
 
-      // If current "line" contains only a single point, try to add current point or reset line
+      // If current "line" contains only a single point, check line start and add current point.
       else
       {
-        if (cur_point.d - current_line_points.back().d < longThreshold_ &&  // if not too far from previous one
-            std::fabs(current_line_points.back().z - cur_ground_height) < maxStartHeight_) // CHECK
-        {
-          // Add point if valid.
-          current_line_points.push_back(cur_point);
-        }
-        else
-        {
-          // Start new line.
+        // If previous point was too high as a line start or too far from current one, reset line.
+        bool line_higher_than_ground = std::fabs(current_line_points.back().z - ground_height) > maxStartHeight_;
+        if (far_from_previous_line || line_higher_than_ground)
           current_line_points.clear();
-          current_line_points.push_back(cur_point);
-        }
+
+        current_line_points.push_back(cur_point);
       }
     }
   }
 
   // Add last line.
-  if (current_line_points.size() > 2)
+  if (current_line_points.size() >= 3)
   {
     const LocalLine new_line = fitLocalLine(current_line_points);
     lines_.push_back(localLineToLine(new_line, current_line_points));
@@ -132,13 +127,13 @@ Segment::Line Segment::localLineToLine(const LocalLine& local_line,
 //------------------------------------------------------------------------------
 /*!
  * @brief Compute vertical distance of a point to the closest line of the segment.
- * @param[in] d Range coordinate of the 2d point.
- * @param[in] z Heigth coordinate of the 2d point.
- * @return Distance of 2d point (d, z) to the segment.
+ * @param[in] d Range coordinate of the 2d point. [m]
+ * @param[in] z Heigth coordinate of the 2d point. [m]
+ * @param[in] dTol Line validity range tolerance. [m]
+ * @return Vertical distance of 2d point (d, z) to the segment. [m]
  */
-double Segment::verticalDistanceToLine(double d, double z)
+double Segment::verticalDistanceToLine(double d, double z, double dTol)
 {
-  const double dTol = 0.2;  // [m] line validity range tolerance
   double distance = -1;  // TODO init to big value
   for (const Line& line : lines_)
   {
@@ -148,7 +143,9 @@ double Segment::verticalDistanceToLine(double d, double z)
       const double deltaZ = line.second.z - line.first.z;
       const double deltaD = line.second.d - line.first.d;
       const double expectedZ = (d - line.first.d) / deltaD * deltaZ + line.first.z;
-      distance = std::fabs(z - expectedZ);  // TODO update only if distance is smaller
+      const double newDistance = std::fabs(z - expectedZ);
+      if (newDistance < distance || distance == -1)
+        distance = newDistance;
     }
   }
   return distance;
